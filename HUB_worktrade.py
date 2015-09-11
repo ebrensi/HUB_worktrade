@@ -13,75 +13,11 @@ import datetime as dt
 from StringIO import StringIO
 import os
 
-# form_DataFrame = get_form(response)
-# response = OurVolts_login(uname, pwd) 
-# report_DataFrame = scrape_report()
-
-base_url = "http://www.trackitforward.com"
-
-def get_form(response):
-    response_soup = BeautifulSoup(response.text)
-    form = response_soup.select('form')[0]
-    input_tags = form.select('input')
-    names = [tag.get('name') for tag in input_tags]
-    values = [tag.get('value') for tag in input_tags]
-    checked = [(tag.get('checked') == 'checked') for tag in input_tags]
-    typ = [tag.get('type') for tag in input_tags]
-    form_vals = pd.DataFrame(zip(names, values, typ, checked),columns=['name','value','typ','checked'] )       
-    return form_vals.set_index('name')
-
-def OurVolts_login(uname, pwd):
-    # log-in to OurVolts 
-    LOGIN_URL =  base_url+"/user/login"
-    login_response = requests.get(LOGIN_URL)
-    form_vars = get_form(login_response)
-    payload = form_vars['value'].to_dict()
-    payload['name'] = uname
-    payload['pass'] = pwd    
-    sesh = requests.Session()
-    sesh.post(LOGIN_URL,data=payload)
-    return sesh
-
-def scrape_report(from_date = "", to_date = "", all_fields = False):
-    sesh = OurVolts_login("BarefootEfrem@gmail.com", "F3_JH!2P%%5hhh" )       
-    
-    # get report form  
-    REPORT_URL = base_url+'/site/67286/manage/report'
-    report_response = sesh.get(REPORT_URL)
-    fvals = get_form(report_response)
-
-    
-    include_types = fvals['typ'].isin(['checkbox','hidden','text'])
-    fvals.loc[include_types,'checked'] = True  # set all checkbox, hidden, and text input types to be sent
-    
-    payload = fvals[fvals.checked]['value'].to_dict()
-    
-    if from_date or  to_date or all_fields:
-        update_dict = {'op' : 'Update Report',
-                       'from_date': from_date, 
-                       'to_date' : to_date}
-        payload.update(update_dict)
-        response = sesh.post(REPORT_URL,data=payload)
-        new_fvals = get_form(response)
-        payload['form_token'] = new_fvals['value']['form_token']
-        payload['form_build_id'] = new_fvals['value']['form_build_id']
-    
-    
-    payload['op'] = 'Export'
-    response = sesh.post(REPORT_URL, data=payload)    
-    report = pd.read_csv(StringIO(response.content))
-    
-    LOGOUT_URL = 'https://www.ourvolts.com/logout'
-    logout_response = sesh.get(LOGOUT_URL)  # logout (Not sure if this is necessary)
-    return report
     
     
 # ********* Main Code ******************   
-    
 from_date = '' 
 to_date = ''
-#report = scrape_report(all_fields = True)
-#report.to_csv('HUB_hours.csv')
 
 dir_list = pd.Series(os.listdir(os.getcwd()))
 dd = dir_list.str.extract('hours-(\d+)-(\d+)-(\d+)-(\d+)-(\d+)-(\d+)').dropna().sort([0,1,2,3,4,5],ascending=False)
@@ -107,7 +43,7 @@ if 'Submitted Date' in df.columns:
   
 df = df.sort(['Volunteer','Date'])  
         
-df['Volunteer'] = df['Volunteer'].astype('category')
+#df['Volunteer'] = df['Volunteer'].astype('category')
 #vol = pd.pivot_table(df,columns='Volunteer',index='Date',values='Hours', aggfunc=pd.np.sum)
 
 """
